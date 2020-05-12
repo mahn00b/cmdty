@@ -1,0 +1,117 @@
+/*
+
+So we have to write a function that determines the series of elevators that are called after a number of elevator calls.
+We are in a 100 floor skyscraper that has 3 elevators.
+
+so it takes 1s to move to a floor, and 5s to wrap up a floor.
+
+It takes 30s at the lobby floor
+
+MAX 10 people per pick up.
+
+
+-relaxed directions
+-relaxed scheduler
+-relaxed People
+
+
+
+potential questions:
+- I'm a little confused as to what exactly is defined as an "elevator call." Is a call a request for the elevator, or a request to be sent to another floor, or both?
+- It's said that the destination floor is known on an elevator call. But if we can have multiple passengers being picked up on a single floor, then won't there eventually be multiple destination floors?
+  or is the function called for every single call regardless of # of passengers per floor?
+- Can I divide floors between elevators? For example, I might want elevator 1 to handle floors 2-30, and elevator 2 to handle 30-50 etc.
+- How should I spread out when each call is made in terms of time? Should I do a consistent interval or should I randomize the intervals between calls as well?
+
+
+Once someone calls an elevator, we should find the closest, least busy elevator,
+and assign it to that.
+
+The least busy elevator has fewer destinations, and is less far away.
+
+
+*/
+
+
+function Elevator(name) {
+    this.queue = [] // a queue of floors for the elevator to visit.
+    this.moving = false
+    this.current = 1
+    this.name = name
+}
+
+Elevator.prototype.call = function (origin, dest) {
+    if (this.queue.indexOf(origin) > -1 && this.queue.indexOf(dest) > -1) return // the trip is already in elevator queue
+
+    if (this.queue.indexOf(origin) === -1) this.queue.push(origin, dest) // origin is not in the queue, so we need to queue that and the destination
+
+    if (!this.moving) this.deliver()
+}
+
+Elevator.prototype.deliver = function () {
+    if(this.queue.length === 0)
+        return
+
+    if (!this.moving) this.moving = true
+
+    let extra
+
+    if (this.current === this.queue[0] ) {
+        extra = this.current === 1 ? 30 : 5
+        this.queue.shift()
+    } else
+        extra = 1
+
+    // setTimeout(() => {
+
+        if (this.current < this.queue[0])
+            this.current++
+        if (this.current > this.queue)
+            this.current--
+
+
+        console.log(`Elevator ${this.name} has just visited floor ${this.current}`)
+        if(this.queue.length > 0)
+            this.deliver()
+        else
+            this.moving = false
+
+    // }, 1000 * extra)
+}
+
+Elevator.prototype.inQueue = function (floor) {
+    return this.queue.indexOf(floor) > -1
+}
+
+ // calculate time to travel based on floors/wait_time
+Elevator.prototype.calculate_trip = function (origin, dest) {
+    return Math.abs(dest - origin) + (dest === 1 || origin === 1 ? 30 : 5)
+}
+
+Elevator.prototype.estimate = function (og, dt) {
+    let est = 0, //Total estimate to get passenger to destination
+        last = this.current,
+        i = 0,
+        pickup = this.inQueue(og) ? this.queue.indexOf(og) : this.queue.length, // find out if we're visiting the origin already
+        wait, // time to wait for elevator
+        trip // time from pickup to destination
+
+    for (; i < pickup; i++) {
+        est += this.calculate_trip(last, this.queue[i])
+        last = this.queue[i]
+    }
+    wait = est
+
+    const index = this.queue.indexOf(dt)
+    let dropoff = index > pickup ? index : this.queue.length
+    for(; i < dropoff; i++) {
+        est += this.calculate_trip(last, this.queue[i])
+        last = this.queue[i]
+    }
+
+    trip = est - wait
+
+    return [est, wait, trip]
+}
+
+module.exports = Elevator

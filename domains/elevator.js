@@ -41,11 +41,20 @@ function Elevator(name) {
 }
 
 Elevator.prototype.call = function (origin, dest) {
-    if (this.queue.indexOf(origin) > -1 && this.queue.indexOf(dest) > -1) return // the trip is already in elevator queue
+    if (this.queue.length === 0) return this.queue.push(origin, dest)
 
-    if (this.queue.indexOf(origin) === -1) this.queue.push(origin, dest) // origin is not in the queue, so we need to queue that and the destination
+    let i = 0
 
-    if (!this.moving) this.deliver()
+    while (this.queue[i] < origin && i < this.queue.length) i++
+
+    if(this.queue[i] !== origin)
+        this.queue.splice(i-1, 0, origin)
+
+    while (this.queue[i] < dest && i < this.queue.length) i++
+
+    if(this.queue[i] !== dest)
+        this.queue.splice(i-1, 0, dest)
+
 }
 
 Elevator.prototype.deliver = function () {
@@ -62,21 +71,23 @@ Elevator.prototype.deliver = function () {
     } else
         extra = 1
 
-    // setTimeout(() => {
+    if (this.queue.length > 0) {
+        setTimeout(() => {
 
-        if (this.current < this.queue[0])
-            this.current++
-        if (this.current > this.queue)
-            this.current--
+            if (this.current < this.queue[0])
+                this.current++
+            if (this.current > this.queue)
+                this.current--
 
 
-        console.log(`Elevator ${this.name} has just visited floor ${this.current}`)
-        if(this.queue.length > 0)
-            this.deliver()
-        else
-            this.moving = false
+            console.log(`Elevator ${this.name} has just visited floor ${this.current}`)
+            if(this.queue.length > 0)
+                this.deliver()
+            else
+                this.moving = false
 
-    // }, 1000 * extra)
+        }, 1000 * extra)
+    }
 }
 
 Elevator.prototype.inQueue = function (floor) {
@@ -89,29 +100,38 @@ Elevator.prototype.calculate_trip = function (origin, dest) {
 }
 
 Elevator.prototype.estimate = function (og, dt) {
+    if (this.queue.length < 0) return this.calculate_trip(og, dt)
     let est = 0, //Total estimate to get passenger to destination
         last = this.current,
         i = 0,
-        pickup = this.inQueue(og) ? this.queue.indexOf(og) : this.queue.length, // find out if we're visiting the origin already
         wait, // time to wait for elevator
-        trip // time from pickup to destination
+        // Added a modifier for direction, to prioritize elevators going in the same direction
+        mod = this.queue > 0 ? dt > og && this.queue[0] > dt ? 1 : dt < og && this.queue[0] < last ? 1 : 2 : 1
 
-    for (; i < pickup; i++) {
-        est += this.calculate_trip(last, this.queue[i])
+    while (this.queue[i] < og && i < this.queue.length) {
+        est += this.calculate_trip(last, this.queue[i]) * mod
         last = this.queue[i]
+        i++
     }
+
     wait = est
 
-    const index = this.queue.indexOf(dt)
-    let dropoff = index > pickup ? index : this.queue.length
-    for(; i < dropoff; i++) {
-        est += this.calculate_trip(last, this.queue[i])
-        last = this.queue[i]
+    if ( og === this.queue[i]) {
+        i++ //if origin is being visited,
+    } else {
+        est += this.calculate_trip(last, og) * mod// if we are visiting a floor higher up than the origin
+        last = og
     }
 
-    trip = est - wait
+    while (last < dt && i < this.queue.length) {
+        est += this.calculate_trip(last, this.queue[i]) * mod
+        last = this.queue[i]
+        i++
+    }
 
-    return [est, wait, trip]
+    est += this.calculate_trip(last, dt)
+
+    return [est, wait, (est - wait)]
 }
 
 module.exports = Elevator

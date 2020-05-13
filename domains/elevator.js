@@ -9,8 +9,6 @@ It takes 30s at the lobby floor
 
 MAX 10 people per pick up.
 
-
--relaxed directions
 -relaxed scheduler
 -relaxed People
 
@@ -38,6 +36,7 @@ function Elevator(name) {
     this.moving = false
     this.current = 1
     this.name = name
+    this.people = 0
 }
 
 Elevator.prototype.call = function (origin, dest) {
@@ -55,7 +54,8 @@ Elevator.prototype.call = function (origin, dest) {
     if(this.queue[i] !== dest)
         this.queue.splice(i-1, 0, dest)
 
-    this.deliver()
+    if(!this.moving)
+        this.deliver()
 }
 
 Elevator.prototype.deliver = function () {
@@ -78,15 +78,15 @@ Elevator.prototype.deliver = function () {
 
             if (this.current < this.queue[0])
                 this.current++
-            else if (this.current > this.queue)
+            else if (this.current > this.queue[0])
                 this.current--
 
-            if(this.queue.length > 0)
-                this.deliver()
-            else
-                this.moving = false
+
+            this.deliver()
 
         }, 1000 * extra)
+    } else {
+        this.moving = false
     }
 }
 
@@ -129,7 +129,7 @@ Elevator.prototype.estimate = function (og, dt) {
         i++
     }
 
-    est += this.calculate_trip(last, dt)
+    est += this.calculate_trip(last, dt) * mod
 
     return [est, wait, (est - wait)]
 }

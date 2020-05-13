@@ -55,6 +55,7 @@ Elevator.prototype.call = function (origin, dest) {
     if(this.queue[i] !== dest)
         this.queue.splice(i-1, 0, dest)
 
+    this.deliver()
 }
 
 Elevator.prototype.deliver = function () {
@@ -66,6 +67,7 @@ Elevator.prototype.deliver = function () {
     let extra
 
     if (this.current === this.queue[0] ) {
+        // console.log(`Elevator ${this.name} has just visited floor ${this.current}`)
         extra = this.current === 1 ? 30 : 5
         this.queue.shift()
     } else
@@ -76,11 +78,9 @@ Elevator.prototype.deliver = function () {
 
             if (this.current < this.queue[0])
                 this.current++
-            if (this.current > this.queue)
+            else if (this.current > this.queue)
                 this.current--
 
-
-            console.log(`Elevator ${this.name} has just visited floor ${this.current}`)
             if(this.queue.length > 0)
                 this.deliver()
             else

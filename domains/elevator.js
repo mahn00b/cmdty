@@ -27,7 +27,7 @@ The least busy elevator has fewer destinations, and is less far away, AND more i
 const events = require('events')
 
 function Elevator(name) {
-    this.queue = [] // a queue of floors for the elevator to visit.
+    this.queue = [[],[],[]] // a queue of floors for the elevator to visit.
     this.moving = false
     this.current = 1
     this.name = name
@@ -39,19 +39,66 @@ function Elevator(name) {
 }
 
 Elevator.prototype.call = function (origin, dest) {
-    if (this.queue.length === 0) return this.queue.push(origin, dest)
+    const [on_deck, next, off] = this.queue
 
-    let i = 0
 
-    while (this.queue[i] < origin && i < this.queue.length) i++
+    let direction
 
-    if(this.queue[i] !== origin)
-        this.queue.splice(i-1, 0, origin)
 
-    while (this.queue[i] < dest && i < this.queue.length) i++
 
-    if(this.queue[i] !== dest)
-        this.queue.splice(i-1, 0, dest)
+    if (this.current === this.queue[0]) {
+
+        if(this.queue.length > 1) {
+            direction = this.current < this.queue[1] ? 'UP' : 'DOWN'
+        } else {
+            direction = ''
+        }
+
+    } else {
+        direction = this.current < this.queue[0] ? 'UP' : 'DOWN'
+    }
+
+    if (direction === '') return this.queue.push(origin, dest)//
+
+    /*
+
+        If the direction is going up:
+            1 - the origin floor is on the way to the next dest
+            2 -
+
+            7
+            2 3 - 8
+            3, 7, 8
+
+    */
+
+    if (origin < dest) {
+
+        if(direction === 'UP') {
+
+                if (this.current < origin && this.queue[0] > dest) {
+                    // append to data structure
+                }
+
+        }
+
+    }
+
+
+    // while (this.queue[i] < origin && i < this.queue.length) i++
+
+    // if(this.queue[i] !== origin)
+    //     this.queue.splice(i-1, 0, origin)
+
+    // while (this.queue[i] < dest && i < this.queue.length) i++
+
+    // if(this.queue[i] !== dest)
+    //     this.queue.splice(i-1, 0, dest)
+
+
+
+
+
 
     if(this.per_floor[origin])
         this.per_floor[origin] += 1
@@ -75,7 +122,7 @@ Elevator.prototype.deliver = function () {
 
     let extra
 
-    if (this.current === this.queue[0] ) {
+    if (this.current === this.queue[0]) {
         this.emitter.emit('floor', { elevator: this.name, floor: this.current })
         extra = this.current === 1 ? 30 : 5
         this.people += this.per_floor[this.current]

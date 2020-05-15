@@ -9,11 +9,6 @@ It takes 30s at the lobby floor
 
 MAX 10 people per pick up.
 
--relaxed scheduler
--relaxed People
-
-
-
 potential questions:
 - I'm a little confused as to what exactly is defined as an "elevator call." Is a call a request for the elevator, or a request to be sent to another floor, or both?
 - It's said that the destination floor is known on an elevator call. But if we can have multiple passengers being picked up on a single floor, then won't there eventually be multiple destination floors?
@@ -25,11 +20,11 @@ potential questions:
 Once someone calls an elevator, we should find the closest, least busy elevator,
 and assign it to that.
 
-The least busy elevator has fewer destinations, and is less far away.
+The least busy elevator has fewer destinations, and is less far away, AND more importantly is going in the same direction.
 
 
 */
-
+const events = require('events')
 
 function Elevator(name) {
     this.queue = [] // a queue of floors for the elevator to visit.
@@ -37,6 +32,10 @@ function Elevator(name) {
     this.current = 1
     this.name = name
     this.people = 0
+    this.emitter = new events.EventEmitter()
+
+    // this will be a map that keeps track of the number of passengers at each floor
+    this.per_floor = {}
 }
 
 Elevator.prototype.call = function (origin, dest) {
@@ -54,6 +53,16 @@ Elevator.prototype.call = function (origin, dest) {
     if(this.queue[i] !== dest)
         this.queue.splice(i-1, 0, dest)
 
+    if(this.per_floor[origin])
+        this.per_floor[origin] += 1
+    else
+        this.per_floor[origin] = 1
+
+    if (this.per_floor[dest])
+        this.per_floor[dest] -= 1
+    else
+        this.per_floor[dest] = -1
+
     if(!this.moving)
         this.deliver()
 }
@@ -67,8 +76,10 @@ Elevator.prototype.deliver = function () {
     let extra
 
     if (this.current === this.queue[0] ) {
-        // console.log(`Elevator ${this.name} has just visited floor ${this.current}`)
+        this.emitter.emit('floor', { elevator: this.name, floor: this.current })
         extra = this.current === 1 ? 30 : 5
+        this.people += this.per_floor[this.current]
+        this.per_floor[this.current] = 0 // passengers either all get off or get on the elevator, so no one waits on the floor
         this.queue.shift()
     } else
         extra = 1
@@ -99,22 +110,28 @@ Elevator.prototype.calculate_trip = function (origin, dest) {
     return Math.abs(dest - origin) + (dest === 1 || origin === 1 ? 30 : 5)
 }
 
+Elevator.prototype.onArrival = function (callback) {
+    this.emitter.on('floor', callback)
+}
+
 Elevator.prototype.estimate = function (og, dt) {
     if (this.queue.length < 0) return this.calculate_trip(og, dt)
     let est = 0, //Total estimate to get passenger to destination
         last = this.current,
         i = 0,
-        wait, // time to wait for elevator
+        people = this.people,
         // Added a modifier for direction, to prioritize elevators going in the same direction
         mod = this.queue > 0 ? dt > og && this.queue[0] > dt ? 1 : dt < og && this.queue[0] < last ? 1 : 2 : 1
 
     while (this.queue[i] < og && i < this.queue.length) {
         est += this.calculate_trip(last, this.queue[i]) * mod
         last = this.queue[i]
+        people += this.per_floor[last]
         i++
     }
 
-    wait = est
+    //if there are still 10 people in the elevator when it reaches the origin, lets send a very large number
+    if (people >= 10) return 10000000000000
 
     if ( og === this.queue[i]) {
         i++ //if origin is being visited,
@@ -131,7 +148,7 @@ Elevator.prototype.estimate = function (og, dt) {
 
     est += this.calculate_trip(last, dt) * mod
 
-    return [est, wait, (est - wait)]
+    return est
 }
 
 module.exports = Elevator

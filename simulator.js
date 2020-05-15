@@ -1,7 +1,10 @@
 const app = require('express')()
+const crypto = require('crypto')
 const Ziggurat = require('./utils/ziggurat')
 const Elevator = require('./domains/elevator')
+
 const random = new Ziggurat()
+const hashtable = {}
 
 const CALLS = isNaN(process.argv[1]) ? 100 : parseInt(process.argv[1])
 
@@ -13,21 +16,25 @@ const stats = {
     total: 0
 }
 
+const record = ({ floor, elevator }) => {
+    console.log(`Elevator ${elevator} has just visited floor ${floor}`)
+}
+
+shafts.forEach((e) => e.onArrival(record))
+
 function simulate(num_calls = 100) {
     const origin = random_floor(),
     dest = random_floor(),
-    next_call = random_interval()
+    next_call = random_interval(),
+    stamp = Date.now()
 
-    const [total, wait, trip] = handle_elevators(origin, dest)
+    handle_elevators(origin, dest)
 
-    stats.wait += wait
-    stats.total += total
-    stats.trip += trip
+    // hashtable[key(origin, dest, stamp)] = { origin, dest, init: stamp }
 
     if (num_calls > 0)
         setTimeout(() => simulate(--num_calls), next_call * 1000)
-    else
-        results()
+
 }
 
 function results() {
@@ -35,15 +42,9 @@ function results() {
 }
 
 function handle_elevators(origin, dest) {
-    shafts.sort((a, b) => {
-      const [est_1,,] = a.estimate(origin, dest)
-      const [est_2,,] = b.estimate(origin, dest)
-      return est_1 - est_2
-    })
+    shafts.sort((a, b) => a.estimate(origin, dest) -  b.estimate(origin, dest))
 
-    const estimates = shafts[0].estimate(origin, dest)
     shafts[0].call(origin, dest)
-    return estimates
 }
 
 function random_interval() {
@@ -51,8 +52,17 @@ function random_interval() {
 }
 
 function random_floor() {
-    return Math.round(Math.abs(random.nextGaussian() * 100)) % 100
+    return Math.round(Math.abs(random.nextGaussian() * 100)) % 99 + 1
 }
+
+function key(origin, dest, stamp) {
+    return crypto.createHmac('sha256', stamp).update((origin + dest).toString()).digest('hex')
+}
+
+/*
+    So it occurred to me that, the estimations calculated by the
+    estimate function change relative to subsequent elevator calls.
+*/
 
 app.listen(3322, () => {
     console.log('Elevator Simulator')
